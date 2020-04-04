@@ -156,7 +156,7 @@ function get_nth()
     local nth=$1
     local tab=$2
 
-    echo "$tab" | awk -v nth=$nth -F, '{print $(nth < 0 ? NF+nth+1 : nth) )'
+    echo "$tab" | awk -v nth=$nth -F, '{ print $(nth < 0 ? NF+nth+1 : nth) }' | tr -d \'
 }
 
 function header()
@@ -194,7 +194,7 @@ function test_run()
 # MAIN
 # ====
 
-#
+# info line
 #
 echo "$COPY"
 echo
@@ -221,6 +221,7 @@ do
         ;;
 
     esac
+
     shift
 done
 
@@ -244,7 +245,9 @@ do
 
       display_stats "$mac" $signal $noise $snr $q10
 
-      visual_plot $q10
+      visual_plot $q10 "$BAR"
 
       audible_signal $q10
+
+      echo
 done
