@@ -6,7 +6,7 @@
 
 # version
 #
-VER='2020.04.06'
+VER='2020.04.07'
 
 # author
 #
@@ -27,15 +27,13 @@ COPY="= DD-WRT = Smart Antenna Tuning = (c) $VER by $AUTH ="
 #
 BEEP_LOW=100
 
-#
+# multiplication factor
 #
 BEEP_MULT=2
 
 # beep length in ms
 #
 BEEP_LEN=50
-
-# BEEP_HIGH = BEEP_LOW + 100 * BEEP_MULT * 10 * Q
 
 # wget timeout in sec
 #
@@ -93,6 +91,10 @@ you cen hear the beeping sound from your PC-SPEAKER clearly:
 > $( basename $0 ) -d
 
 > $( basename $0 ) -d '500,600'
+
+To supress bar plot assign empty string to -b[ar] parameter:
+
+> $( basename $0 ) -b '' router
 
 This script executes infinite loop so use standard CTRL-C for stop and return to the command prompt.
 
@@ -241,7 +243,7 @@ function header()
         # header
         display_stats 'MAC-address' 'Sig' 'Noi' 'SNR' 'Q*10'
         #visual_plot 1000 "$BAR"
-        echo_center "$txt"
+        [ -n "$BAR" ] && echo_center "$txt"
         echo
 
         for i in $(seq 34); do echo -n "="; done
