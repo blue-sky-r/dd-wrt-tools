@@ -4,6 +4,22 @@
 # ====================
 # DD-WRT wifi antenna position tuning utility
 
+# version
+#
+VER='2020.04.06'
+
+# author
+#
+AUTH='Robert'
+
+# github repository
+#
+REPO="https://github.com/blue-sky-r/dd-wrt-tools"
+
+# copyright
+#
+COPY="= DD-WRT = Smart Antenna Tuning = (c) $VER by $AUTH ="
+
 # DEFAULTS
 # --------
 
@@ -41,28 +57,21 @@ KMOD=pcspkr
 #
 DEMO="0,250,500,750,1000"
 
-# debug output to stderr
+# debug/verbose output to stderr
 #
-DBG=1
-#DBG=
+DBG=
 
 # END of DEFAULTS
 # ---------------
-
-# version
-#
-VER='2020.04.05'
-AUTH='Robert Blue-Sky-R'
-COPY="= DD-WRT = Smart Antenna Tuning = (c) $AUTH = version $VER ="
-GHUB=""
 
 # usage
 #
 [ $# -lt 1 ] && cat <<< """
 $COPY
 
-usage: $( basename $0 ) [-b[ar] 'xX'] [-l[en] ms] [-o[ffset] Hz] [-m[ult] k] [-r[efresh] sec] [-d[emo] ['q10,q10']] [-t[imeout] sec] [router]
+usage: $( basename $0 ) [-v] [-b[ar] 'xX'] [-l[en] ms] [-o[ffset] Hz] [-m[ult] k] [-r[efresh] sec] [-d[emo] ['q10,q10']] [-t[imeout] sec] [router]
 
+-v         ... verbose / debug mode
 -b[ar]     ... bar plot characters (default '$BAR')
 -l[en]     ... beep length in ms (default $BEEP_LEN, set to 0 to disable beeping)
 -o[ffset]  ... the lowest beep (offset) in Hz (default $BEEP_LOW)
@@ -110,11 +119,27 @@ Tips:
 
 # Q10 = 10 * Quality <0-100> = <0 ... 1000>
 
+# debug output to stderr
+#
 function debug()
 {
     [ $DBG ] && >&2 echo 'DBG:' $@
 }
 
+# center text for optional width (100) with optional pad character (space)
+#
+function echo_center()
+{
+    local txt=$1
+    local width=${2:-100}
+    local padchr=${3:- }
+
+    local len=$(( ($width - ${#txt} - 2)/2 ))
+    local pad
+    for i in $( seq $len ); do pad="$pad$padchr"; done
+
+    printf "%s %s %s" "$pad" "$txt" "$pad"
+}
 
 # display signal plot 100 char wide (0-100%)
 #
@@ -151,7 +176,7 @@ function display_stats()
          local snr=$4
          local q10=$5
 
-         printf "%17s %3s %3s %3s %4s = " $mac $signal $noise $snr $q10
+         printf "%17s %3s %3s %3s %4s = " "$mac" "$signal" "$noise" "$snr" "$q10"
 }
 
 # beep for signal quality 0% - 50% - 100% to demonstrate
@@ -167,7 +192,7 @@ function demo_beep()
          sound 1000
 }
 
-#
+# try to load kernel module if not loaded
 #
 function load_kmod()
 {
@@ -211,10 +236,14 @@ function get_nth()
 
 function header()
 {
+        local txt=$1
+
         # header
         display_stats 'MAC-address' 'Sig' 'Noi' 'SNR' 'Q*10'
-        visual_plot 1000 "$BAR"
+        #visual_plot 1000 "$BAR"
+        echo_center "$txt"
         echo
+
         for i in $(seq 34); do echo -n "="; done
         echo -n " = "
         [ -n "$BAR" ] && for i in $(seq 100); do echo -n "="; done
@@ -227,7 +256,7 @@ function test_run()
         local q10s=$1
         local mac='11:22:33:44:55:66'
 
-        header
+        header "DEMO $q10s"
 
         for q10 in ${q10s//,/ }
         {
@@ -255,8 +284,12 @@ while [ $# -gt 0 ]
 do
     case $1 in
 
+    -v)
+        DBG=1
+        ;;
+
     -d|-demo)
-        [ -n "$2" ] && [[ $2 =~ [0-9]+(,[0-9]+)* ]] && shift && DEMO=$1
+        [ -n "$2" ] && [[ $2 =~ ^[0-9]+(,[0-9]+)* ]] && shift && DEMO=$1
         debug "PAR: demo($DEMO)"
         test_run "$DEMO"
         ;;
@@ -318,7 +351,7 @@ done
 echo "${COPY} d:$DEMO = b:$BAR = l:${BEEP_LEN}ms o:${BEEP_LOW}Hz m:${BEEP_MULT} = r:${SLEEP}s = t:${TIMEOUT}s = $URL ="
 echo
 
-header
+header "$URL"
 
 # loop
 #
@@ -333,17 +366,17 @@ do
 
       if [ -z "$table" ]
       then
-        mac='- -'
-        signal='-'
-        noise='-'
-        snr='-'
-        q10=0
+            mac='- -'
+            signal='-'
+            noise='-'
+            snr='-'
+            q10=0
       else
-        mac=$( get_nth 1 "$table" )
-        signal=$( get_nth -4 "$table" )
-        noise=$( get_nth -3 "$table" )
-        snr=$( get_nth -2 "$table" )
-        q10=$( get_nth -1 "$table" )
+            mac=$( get_nth 1 "$table" )
+            signal=$( get_nth -4 "$table" )
+            noise=$( get_nth -3 "$table" )
+            snr=$( get_nth -2 "$table" )
+            q10=$( get_nth -1 "$table" )
       fi
 
       display_stats "$mac" $signal $noise $snr $q10
