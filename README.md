@@ -89,7 +89,7 @@ crossing link. You got the idea ...
     Note: DD-WRT is using Q!0 as parameter for quality, which is just 10 * Q. 
     So when quality is 0..100% the 10x multiplication Q10 is 0..1000.
  
-The quality factor Q is internally processed by DD-WRT and it is build version dependent.
+The Signal Quality Q is internally processed by DD-WRT and it is build version dependent.
 So the same SNR (signal-to-noise-ratio) value will display different quality Q in different
 dd-wrt build. This might be caused by various factors like different wifi
 drivers so don't get obsessed with absolute number, just look for relative changes (Q dropping vs Q rising). 
@@ -103,9 +103,11 @@ The simplified workflow:
 * the html page is retrieved by wget and java script function call setWirelessTable() is filtered out
 * numerical parameter Signal [dBm], Noise [dBm], SNR, Q10 [%] are extracted from JS setWirelessTable() call
 * values are diplayed as numbers in columns: MAC address, Signal, Noise, SNR, Q10
-* optional signal plot bar is displayed with fixed width 100 cars (1 char = 1 %)
+* optional signal plot bar is displayed with fixed width 100 chars (1 char = 1 %)
 * optional audible beep is generated through PC speaker
 * loop forever (until CTRL+C)
+
+[smantun video - screen recording](screen/smantun.mp4 "video")
 
 ![smantun screenshot](screen/smantun.png)
 
