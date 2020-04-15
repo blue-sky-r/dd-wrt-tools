@@ -109,6 +109,8 @@ The simplified workflow:
 
 [smantun video - screen recording](screen/smantun.mp4 "video")
 
+[![click to play video](screen/smantun.png)](https://raw.github.com/blue-sky-r/dd-wrt-tools/master/screen/smantun.mp4)
+
 ![smantun screenshot](screen/smantun.png)
 
 ### smantun - ideas for possible future improvements
