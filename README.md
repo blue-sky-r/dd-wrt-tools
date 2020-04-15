@@ -107,11 +107,11 @@ The simplified workflow:
 * optional audible beep is generated through PC speaker
 * loop forever (until CTRL+C)
 
-[smantun video - screen recording](screen/smantun.mp4 "video")
+_click on the screenshot image to play the screenrecording video_
 
 [![click to play video](screen/smantun.png)](https://raw.github.com/blue-sky-r/dd-wrt-tools/master/screen/smantun.mp4)
 
-![smantun screenshot](screen/smantun.png)
+_click on the screenshot image to play the screenrecording video_
 
 ### smantun - ideas for possible future improvements
 
