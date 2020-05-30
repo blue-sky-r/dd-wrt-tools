@@ -16,19 +16,25 @@ signal quality bar plot as well as audible beeping (with pitch related to signal
 configurable options (with sensible default values) are useful for adjusting the antenna / router
 position to maximize signal quality (coverage). To get usage help simply run the script without any parameter:
 
-    = DD-WRT = Smart Antenna Tuning = (c) 2020.04.07 by Robert =
+    = DD-WRT = Smart Antenna Tuning = (c) 2020.05.30 by Robert =
     
-    usage: smantun.sh [-v] [-b[ar] 'xX'] [-l[en] ms] [-o[ffset] Hz] [-m[ult] k] [-r[efresh] sec] [-d[emo] ['q10,q10']] [-t[imeout] sec] [router]
+    usage: smantun.sh [-v] [-s 'c1,c2'] [-b 'xX'] [-l ms] [-o Hz] [-m k] [-r sec] [-d] ['q10,q10']] [-t sec] [router]
     
-    -v         ... verbose (debug) mode
-    -b[ar]     ... bar plot characters (default '#_', set to '' to disable plot)
-    -l[en]     ... beep length in ms (default 50, set to 0 to disable beeping)
-    -o[ffset]  ... the lowest beep (offset) in Hz (default 100)
-    -m[ult]    ... beep frequency multiplication (sensitivity) factor (default 2)
-    -r[efresh] ... update frequency in seconds, float accepted (default 3)
-    -d[emo]    ... demonstration mode (comma separated Q10 values, default '0,250,500,750,1000')
-    -t[imeout] ... router connection timeout in sec (default 3)
-    router     ... router/host as target client running DD-WRT and with accessible info page (hostname or ip address)    
+    -v             ... verbose (debug) mode
+    -s[tats] c1,c2 ... display statistics (comma separated 3-char column names, default: $STATS)
+                       mac = MAC address
+                       sig = Signal dBm
+                       noi = Noise dBm
+                       snr = Signal to Noise Ratio
+                       q10 = Quality percent * 10
+    -b[ar]         ... bar plot characters (default '$BAR', set to '' to disable plot)
+    -l[en]         ... beep length in ms (default $BEEP_LEN, set to 0 to disable beeping)
+    -o[ffset]      ... the lowest beep (offset) in Hz (default $BEEP_LOW)
+    -m[ult]        ... beep frequency multiplication (sensitivity) factor (default $BEEP_MULT)
+    -r[efresh]     ... update frequency in seconds, float accepted (default $SLEEP)
+    -d[emo]        ... demonstration mode (comma separated Q10 values, default '$DEMO')
+    -t[imeout]     ... router connection timeout in sec (default $TIMEOUT)
+    router         ... router/host as target client running DD-WRT with accessible info page (hostname or ip address)
     
     Note: the beep freq. formula (Q is the signal quality between 0..100): frequency = offset + 10 * Q * mult
     
@@ -57,12 +63,16 @@ position to maximize signal quality (coverage). To get usage help simply run the
     
     > smantun.sh -l 0 router
     
+    Display only Q10 and SNR statistics columns:
+
+    > smantun.sh -s q10,snr 0 router
+    
     This script executes infinite loop so use standard CTRL-C for stop and return to the command prompt.
     
     REQUIRES:
     - kernel module [ pcspkr ] (usually blackisted and not loaded so script will load module at the startup if required)
     - connected and functional PC-SPEAKER
-    - wget, grep, awk
+    - beep executable
     - dd-wrt running on the target router (connected to the access point)
     
     The script does not make any changes to your system configuration. It loads kernel module [ pcspkr ] temporarily till the next reboot.

@@ -116,11 +116,16 @@ To suppress audible beeps (silent execution) just set beep length to 0:
 
 > $( basename $0 ) -l 0 router
 
+Display only Q10 and SNR statistics columns:
+
+> $( basename $0 ) -s q10,snr 0 router
+
 This script executes infinite loop so use standard CTRL-C to stop and return to the command prompt.
 
 REQUIRES:
 - kernel module [ $KMOD ] (usually blackisted and not loaded so script will load module at the startup if required)
 - connected and functional PC-SPEAKER
+- beep executable
 - wget, grep, awk
 - dd-wrt running on the target router (connected to the access point)
 
