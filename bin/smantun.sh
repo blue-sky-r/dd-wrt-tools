@@ -6,7 +6,7 @@
 
 # version
 #
-VER='2020.05.30'
+VER='2020.06.01'
 
 # author
 #
@@ -59,6 +59,10 @@ KMOD=pcspkr
 #
 DEMO="0,250,500,750,1000"
 
+# filter only MAC (defualt no filtering)
+#
+MAC=
+
 # debug/verbose output to stderr
 #
 DBG=
@@ -71,9 +75,10 @@ DBG=
 [ $# -lt 1 ] && cat <<< """
 $COPY
 
-usage: $( basename $0 ) [-v] [-s 'c1,c2'] [-b 'xX'] [-l ms] [-o Hz] [-m k] [-r sec] [-d] ['q10,q10']] [-t sec] [router]
+usage: $( basename $0 ) [-v] [-a mac] [-s 'c1,c2'] [-b 'xX'] [-l ms] [-o Hz] [-m k] [-r sec] [-d] ['q10,q10']] [-t sec] [router]
 
 -v             ... verbose (debug) mode
+-a|mac mac     ... filter only MAc address (case insensitive, partial match supported, watch out for masking MAC addr.)
 -s[tats] c1,c2 ... display statistics (comma separated 3-char column names, default: $STATS)
                    mac = MAC address
                    sig = Signal dBm
@@ -119,6 +124,10 @@ To suppress audible beeps (silent execution) just set beep length to 0:
 Display only Q10 and SNR statistics columns:
 
 > $( basename $0 ) -s q10,snr 0 router
+
+Filter only MAC XX:XX:XX:XX:56:78
+
+> $( basename $0 ) -mac 'xx:56:78' router
 
 This script executes infinite loop so use standard CTRL-C to stop and return to the command prompt.
 
@@ -191,9 +200,7 @@ function audible_signal()
 
          local f=$(( $BEEP_LOW + $BEEP_MULT * $q10 ))
 
-         debug "beep($f Hz)"
-
-         [ $BEEP_LEN -gt 0 ] && beep -l $BEEP_LEN -f $f
+         [ $BEEP_LEN -gt 0 ] && beep -l $BEEP_LEN -f $f && debug "beep($f Hz)"
 }
 
 # display statistics
@@ -256,12 +263,14 @@ function load_kmod()
 function get_dd_wrt_wifi_table()
 {
         local http=$1
+        local mac=$2
 
         # get info page and grep setWirelessTable fnc call
         # setWirelessTable('xx:xx:xx:xx:25:87','','wl0','2:12:14','13M','26M','HT20','-55','-80','25','900');
         wget -q --timeout=$TIMEOUT -O - "$http" \
         | grep -o "setWirelessTable('\([0-9A-Fx]\{2\}:\)\{5\}[0-9A-Fx]\{2\}','.\+','[0-9]\+');" \
-        | grep -o "'.*'"
+        | grep -o "'.*'" | sed -e "s/,\('\([0-9A-FX]\{2\}:\)\{5\}[0-9A-FX]\{2\}',\)/\n\1/g" \
+        | grep -iF "$mac"
 
         #  MAC                    if    uptime    tx    rx    info   sig   noise snr  q*10
         # 'xx:xx:xx:xx:25:87','','wl0','2:12:14','13M','26M','HT20','-55','-80','25','900'
@@ -316,9 +325,9 @@ function test_run()
         echo
 }
 
-# ====
-# MAIN
-# ====
+# =======
+#  MAIN
+# ======
 
 # check and load kernel module
 #
@@ -332,6 +341,12 @@ do
 
     -v)
         DBG=1
+        ;;
+
+    -a|-mac)
+        shift
+        MAC=$1
+        debug "PAR: mac($MAC)"
         ;;
 
     -s|-stats)
@@ -404,7 +419,7 @@ check_beep
 
 # info line
 #
-echo "${COPY} s:${STATS} = d:$DEMO = b:$BAR = l:${BEEP_LEN}ms o:${BEEP_LOW}Hz m:${BEEP_MULT} = r:${SLEEP}s = t:${TIMEOUT}s = $URL ="
+echo "${COPY} s:${STATS} = ${MAC} = d:$DEMO = b:$BAR = l:${BEEP_LEN}ms o:${BEEP_LOW}Hz m:${BEEP_MULT} = r:${SLEEP}s = t:${TIMEOUT}s = $URL ="
 echo
 
 header "$URL"
@@ -416,26 +431,26 @@ do
 
       # JS setWirelessTable() call with real values from dd-wrt info page
       #
-      table=$( get_dd_wrt_wifi_table "$URL" )
+      table=$( get_dd_wrt_wifi_table "$URL" "$MAC" )
 
       debug "setWirelessTable($table)"
 
       if [ -z "$table" ]
       then
-            mac='- -'
+            maca='- -'
             signal='-'
             noise='-'
             snr='-'
             q10=0
       else
-            mac=$( get_nth 1 "$table" )
+            maca=$( get_nth 1 "$table" )
             signal=$( get_nth -4 "$table" )
             noise=$( get_nth -3 "$table" )
             snr=$( get_nth -2 "$table" )
             q10=$( get_nth -1 "$table" )
       fi
 
-      display_stats "$mac" $signal $noise $snr $q10
+      display_stats "$maca" $signal $noise $snr $q10
 
       visual_plot $q10 "$BAR"
 
