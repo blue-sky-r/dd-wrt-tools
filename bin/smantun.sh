@@ -6,7 +6,7 @@
 
 # version
 #
-VER='2020.06.01'
+VER='2020.06.02'
 
 # author
 #
@@ -264,7 +264,7 @@ function load_kmod()
 function get_dd_wrt_wifi_table()
 {
         local http=$1
-        local mac=$2
+        local mac=${2:-:}
 
         # get info page and grep setWirelessTable fnc call
         # setWirelessTable('xx:xx:xx:xx:25:87','','wl0','2:12:14','13M','26M','HT20','-55','-80','25','900');
