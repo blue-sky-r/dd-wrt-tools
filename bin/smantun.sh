@@ -6,7 +6,7 @@
 
 # version
 #
-VER='2020.06.02'
+VER='2020.06.17'
 
 # author
 #
@@ -225,19 +225,6 @@ function display_stats()
          printf "= "
 }
 
-# beep for signal quality 0% - 50% - 100% to demonstrate
-#
-function demo_beep()
-{
-         local slp=${1:-0.5}
-
-         sound 0
-         sleep $slp
-         sound 500
-         sleep $slp
-         sound 1000
-}
-
 # check if beep is installed (show msg and enforce silent mode if not)
 #
 function check_beep()
@@ -268,7 +255,10 @@ function get_dd_wrt_wifi_table()
 
         # get info page and grep setWirelessTable fnc call
         # setWirelessTable('xx:xx:xx:xx:25:87','','wl0','2:12:14','13M','26M','HT20','-55','-80','25','900');
+        # setWirelessTable('xx:xx:xx:xx:CB:E7','','wl0','0:01:36','11M','18M','LEGACY','-71','-87','16','580');setWDSTable();setDHCPTable( 'ze4325','192.168.3.132','xx:xx:xx:xx:BE:08','0 days 00:00:00','132')
+        
         wget -q --timeout=$TIMEOUT -O - "$http" \
+        | sed 's/;set/;\nset/g' \
         | grep -o "setWirelessTable('\([0-9A-Fx]\{2\}:\)\{5\}[0-9A-Fx]\{2\}','.\+','[0-9]\+');" \
         | grep -o "'.*'" | sed -e "s/,\('\([0-9A-FX]\{2\}:\)\{5\}[0-9A-FX]\{2\}',\)/\n\1/g" \
         | grep -iF "$mac"
