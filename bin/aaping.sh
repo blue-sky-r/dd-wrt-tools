@@ -6,7 +6,7 @@
 
 # version
 #
-VER='2020.06.17'
+VER='2020.06.20'
 
 # author
 #
@@ -27,15 +27,13 @@ COPY="= audible-asus-ping = (c) $VER by $AUTH ="
 #
 PING_HZ_MS="ttl=64:1000:50 ttl=100:750:100 *:500:100"
 
+# pass-through ping options
+#
 PING_OPT=
 
 # kernel module for pc speaker
 #
 KMOD=pcspkr
-
-# debug/verbose output to stdout
-#
-DBG=
 
 # END of DEFAULTS
 # ---------------
@@ -48,11 +46,14 @@ $COPY
 usage: $( basename $0 ) [-v] [-aa 'ttL:hz:ms ttl2:hz2:m2 *:hz3:ms3'] [ping_opt] target
 
 -v         ... verbose (debug) mode
--ok hz:ms  ...
-ping_opt   ... other ping options apped to ping
+-aa hz:ms  ... audible settings in the format ttl=xx:hz:ms where xx is the ttl to match to generate beep with
+               frequency of hz Hz and length of ms ms to pc speaker. Multiple entries are separated by space,
+               the last entry should match all (* this will beep in case of any error).
+               Default table is: $PING_HZ_MS
+ping_opt   ... other ping options pass-through to ping
 target     ... target (hostname or ip address)
 
-> $( basename $0 ) -mac xx:56:78 router
+> $( basename $0 ) target
 
 This script executes infinite loop so use standard CTRL-C to stop and return to the command prompt.
 
@@ -67,17 +68,12 @@ you might try to remove kernel module [ $KMOD ] manually by:
 
 > sudo rmmod $KMOD
 
-Tips:
-- for quick antenna adjustment use fast refresh, but be aware that you are affecting the signal by your presence
-- for high precision adjustment use slower refresh and always distance yourself from antenna after manipulation
-- you can adjust multiplication factor for increased sensitivity, higher value will trigger bigger pitch change
-- wifi card in your router needs some time to settle down so be smart with refresh speed
 """ && exit 1
 
 # FUNCTIONS
 # =========
 
-# msg - debug or logger output
+# msg - debug or no output
 #
 msg="true"
 
@@ -85,7 +81,7 @@ msg="true"
 #
 function check_beep()
 {
-    ! which beep > /dev/null && BEEP_LEN=0 && echo "BEEP is not installed !"
+    ! which beep > /dev/null && echo "BEEP is not installed !"
 }
 
 # try to load kernel module if not loaded
@@ -168,11 +164,11 @@ done
 
 $msg "PAR: PING_OPT($PING_OPT)"
 
-# check beep and force silent mode if not present
+# check beep
 #
 check_beep
 
-# loop
+# infinite loop
 #
 ok=0; err=0
 while sleep 1
