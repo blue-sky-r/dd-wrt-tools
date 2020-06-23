@@ -6,7 +6,7 @@
 
 # version
 #
-VER='2020.06.20'
+VER='2020.06.22'
 
 # author
 #
@@ -27,6 +27,14 @@ COPY="= audible-asus-ping = (c) $VER by $AUTH ="
 #
 PING_HZ_MS="ttl=64:1000:50 ttl=100:750:100 *:500:100"
 
+# limit number of pings
+#
+COUNT=0
+
+# wait interval seconds between sending packets
+#
+INTERVAL=1
+
 # pass-through ping options
 #
 PING_OPT=
@@ -43,15 +51,17 @@ KMOD=pcspkr
 [ $# -lt 1 ] && cat <<< """
 $COPY
 
-usage: $( basename $0 ) [-v] [-aa 'ttL:hz:ms ttl2:hz2:m2 *:hz3:ms3'] [ping_opt] target
+usage: $( basename $0 ) [-v] [-aa 'ttL:hz:ms ttl2:hz2:m2 *:hz3:ms3'] [-c count] [-i interval] [ping_opt] target
 
--v         ... verbose (debug) mode
--aa hz:ms  ... audible settings in the format ttl=xx:hz:ms where xx is the ttl to match to generate beep with
-               frequency of hz Hz and length of ms ms to pc speaker. Multiple entries are separated by space,
-               the last entry should match all (* this will beep in case of any error).
-               Default table is: $PING_HZ_MS
-ping_opt   ... other ping options pass-through to ping
-target     ... target (hostname or ip address)
+-v               ... verbose (debug) mode
+-aa ttl=xx:hz:ms ... audible settings where xx is the ttl to match to generate beep with frequency of hz Hz and
+                     length of ms ms to pc speaker. Multiple entries are separated by space,
+                     the last entry should match all (* this will beep in case of any error).
+                     Default table is: $PING_HZ_MS
+-c count         ... stop after executing count pings (default $COUNT = infinite loop)
+-i interval      ... wait interval between sending the packets (default $INTERVAL)
+ping_opt         ... other ping options pass-through to ping
+target           ... target (hostname or ip address)
 
 > $( basename $0 ) target
 
@@ -153,6 +163,18 @@ do
         $msg "PAR: PING_HZ_MS($PING_HZ_MS)"
         ;;
 
+    -c)
+        shift
+        COUNT=$1
+        $msg "PAR: COUNT($COUNT)"
+        ;;
+
+    -i)
+        shift
+        INTERVAL=$1
+        $msg "PAR: INTERVAL($INTERVAL)"
+        ;;
+
     *)
         PING_OPT="$PING_OPT $1"
         ;;
@@ -170,15 +192,19 @@ check_beep
 
 # infinite loop
 #
-ok=0; err=0
-while sleep 1
+ok=0; err=0; loop=0
+while sleep $INTERVAL
 do
-
-        ttl=$( ping -c 1 -W 1 $PING_OPT | grep -o "ttl=[[:digit:]]\+" )
+        (( ++loop ))
+        ping=$( ping -c 1 -w $INTERVAL $PING_OPT )
+        ttl=$(  echo "$ping" |  grep -o "ttl=[[:digit:]]\+" )
+        time=$( echo "$ping" |  grep -o "time=[[:digit:]]\+\.[[:digit:]]\+" )
         $msg "ping $PING_OPT -> returns($ttl)"
         # beep
         ttl_beep $ttl
         # statisctics
         [ -n "$ttl" ] && (( ++ok )) || (( ++err ))
-        printf "\r OK: %4d / ERR: %4d " $ok $err
+        printf "\r OK: %4d / ERR: %4d / %s %s " $ok $err $ttl $time
+        # limit number of packets to count
+        [ $COUNT -gt 0 ] && [ $loop -ge $COUNT ] && break
 done
