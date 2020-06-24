@@ -51,13 +51,16 @@ KMOD=pcspkr
 [ $# -lt 1 ] && cat <<< """
 $COPY
 
-usage: $( basename $0 ) [-v] [-aa 'ttL:hz:ms ttl2:hz2:m2 *:hz3:ms3'] [-c count] [-i interval] [ping_opt] target
+usage: $( basename $0 ) [-v] [-aa 'ttL:mode:hz:ms ttl2:mode2:hz2:m2 *:mode3:hz3:ms3'] [-c count] [-i interval] [ping_opt] target
 
 -v               ... verbose (debug) mode
--aa ttl=xx:hz:ms ... audible settings where xx is the ttl to match to generate beep with frequency of hz Hz and
-                     length of ms ms to pc speaker. Multiple entries are separated by space,
-                     the last entry should match all (* this will beep in case of any error).
-                     Default table is: $TTL_INFO_HZ_MS
+-aa ttl=xx:mode:hz:ms ... audible settings where xx is the ttl to match to generate beep with frequency of hz Hz and
+                          length of ms ms to pc speaker. Mode is descriptive information about mode (do not use spaces,
+                          use _ in text, all undescores will be displayed as spaces). Multiple entries are separated by space,
+                          the last entry should match all (* this will beep in case of any error).
+                          Default table is:
+                          $TTL_MODE_HZ_MS
+-scroll          ... scroll mode (default one-line mode), useful to see history
 -c count         ... stop after executing count pings (default $COUNT = infinite loop)
 -i interval      ... wait interval between sending the packets (default $INTERVAL)
 ping_opt         ... other ping options pass-through to ping
@@ -154,6 +157,12 @@ function ttl_beep()
 #
 load_kmod $KMOD
 
+# printout mode
+# single line (default)
+head=$'\r'; tail=' '
+# scroll
+#head=' '; tail=$'\n'
+
 # parse cli pars
 #
 while [ $# -gt 0 ]
@@ -166,8 +175,13 @@ do
 
     -aa)
         shift
-        PING_HZ_MS=$1
-        $msg "PAR: PING_HZ_MS($PING_HZ_MS)"
+        TTL_MODE_HZ_MS=$1
+        $msg "PAR: TTL_MODE_HZ_MS($TTL_MODE_HZ_MS)"
+        ;;
+
+    -sc|-scroll)
+        head=' '; tail=$'\n'
+        $msg "PAR: scroll mode activated"
         ;;
 
     -c)
@@ -205,13 +219,14 @@ do
         (( ++loop ))
         ping=$( ping -c 1 -w $INTERVAL $PING_OPT )
         ttl=$(  echo "$ping" |  grep -o "ttl=[[:digit:]]\+" )
-        time=$( echo "$ping" |  grep -o "time=[[:digit:]]\+\.[[:digit:]]\+" )
+        time=$( echo "$ping" |  grep -o "time=[[:digit:]]\+\.\?[[:digit:]]\+" )
         $msg "ping $PING_OPT -> returns($ttl, $time)"
         # beep by the lookup table and get mode from lookup table
         mode=$( ttl_beep $ttl )
-        # statisctics
+        # count statisctics
         [ -n "$ttl" ] && (( ++ok )) || (( ++err ))
-        printf "\r OK: %4d / ERR: %4d / %6s %9s %s " $ok $err "$ttl" "$time" "${mode//_/ }"
+        # display stats
+        printf '%sOK: %4d / ERR: %4d / %-6s %-9s %s %s' "$head" $ok $err "$ttl" "$time" "${mode//_/ }" "$tail"
         # limit number of packets to count
         [ $COUNT -gt 0 ] && [ $loop -ge $COUNT ] && break
 done
