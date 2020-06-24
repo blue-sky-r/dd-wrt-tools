@@ -6,7 +6,7 @@
 
 # version
 #
-VER='2020.06.22'
+VER='2020.06.24'
 
 # author
 #
@@ -23,9 +23,9 @@ COPY="= audible-asus-ping = (c) $VER by $AUTH ="
 # DEFAULTS
 # --------
 
-# beep ok, Hz:ms
-#
-PING_HZ_MS="ttl=64:1000:50 ttl=100:750:100 *:500:100"
+# lookup table: ttl:mode:beep_Hz:beep_ms
+# note: use _ instead os spaces in mode field
+TTL_MODE_HZ_MS="ttl=64:Normal/Working:1000:50 ttl=100:TFTP_Recovery:750:100 *:Unknown:500:100"
 
 # limit number of pings
 #
@@ -57,7 +57,7 @@ usage: $( basename $0 ) [-v] [-aa 'ttL:hz:ms ttl2:hz2:m2 *:hz3:ms3'] [-c count] 
 -aa ttl=xx:hz:ms ... audible settings where xx is the ttl to match to generate beep with frequency of hz Hz and
                      length of ms ms to pc speaker. Multiple entries are separated by space,
                      the last entry should match all (* this will beep in case of any error).
-                     Default table is: $PING_HZ_MS
+                     Default table is: $TTL_INFO_HZ_MS
 -c count         ... stop after executing count pings (default $COUNT = infinite loop)
 -i interval      ... wait interval between sending the packets (default $INTERVAL)
 ping_opt         ... other ping options pass-through to ping
@@ -122,21 +122,28 @@ function beep_hz_ms()
     beep -f $hz -l $ms
 }
 
-# beep according to TTL
+# beep according to TTL and return mode to display
 #
 function ttl_beep()
 {
     local pingttl=$1
 
-    for ttl_hz_ms in $PING_HZ_MS
+    # iterate ttl:mode:hz:ms lookup table
+    for entry in $TTL_MODE_HZ_MS
     {
-        local ttl=${ttl_hz_ms%%:*}
-        local hz_ms=${ttl_hz_ms#*:}
+        # split lookup table entry to pieces
+        local ttl=${entry%%:*}
+        local mode_hz_ms=${entry#*:}
+        local mode=${mode_hz_ms%%:*}
+        local hz_ms=${mode_hz_ms#*:}
 
-        $msg "ttl_beep($pingttl) ttl($ttl) hz_ms($hz_ms)"
+        $msg "ttl_beep($pingttl) entry($entry) -> ttl($ttl) mode_hz_ms($mode_hz_ms) mode($mode) hz_ms($hz_ms)"
 
         [[ $pingttl == $ttl ]] && beep_hz_ms "$hz_ms" && break
     }
+
+    # return mode
+    echo "mode=$mode"
 }
 
 # =======
@@ -199,12 +206,12 @@ do
         ping=$( ping -c 1 -w $INTERVAL $PING_OPT )
         ttl=$(  echo "$ping" |  grep -o "ttl=[[:digit:]]\+" )
         time=$( echo "$ping" |  grep -o "time=[[:digit:]]\+\.[[:digit:]]\+" )
-        $msg "ping $PING_OPT -> returns($ttl)"
-        # beep
-        ttl_beep $ttl
+        $msg "ping $PING_OPT -> returns($ttl, $time)"
+        # beep by the lookup table and get mode from lookup table
+        mode=$( ttl_beep $ttl )
         # statisctics
         [ -n "$ttl" ] && (( ++ok )) || (( ++err ))
-        printf "\r OK: %4d / ERR: %4d / %s %s " $ok $err $ttl $time
+        printf "\r OK: %4d / ERR: %4d / %6s %9s %s " $ok $err "$ttl" "$time" "${mode//_/ }"
         # limit number of packets to count
         [ $COUNT -gt 0 ] && [ $loop -ge $COUNT ] && break
 done
