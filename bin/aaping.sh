@@ -6,7 +6,7 @@
 
 # version
 #
-VER='2020.06.25'
+VER='2020.06.26'
 
 # author
 #
@@ -39,9 +39,9 @@ INTERVAL=1
 #
 PING_OPT=
 
-# output lines (default one-line, 0 is infinite lines = scrollimg mode)
+# scroll output lines = no (one-line), all (always), err (only errors)
 #
-OUT_LINES=1
+SCROLL='err'
 
 # silent mode (default audible mode)
 #
@@ -59,7 +59,7 @@ KMOD=pcspkr
 [ $# -lt 1 ] && cat <<< """
 $COPY
 
-usage: $( basename $0 ) [-v][-aa 'ttL:mode:hz:ms ttl2:mode2:hz2:m2 *:mode3:hz3:ms3'][-scroll][-silent][-c count][-i interval][ping_opt] target
+usage: $( basename $0 ) [-v][-aa 'ttL:mode:hz:ms ttl2:mode2:hz2:m2 *:mode3:hz3:ms3'][-scroll mode][-silent][-c count][-i interval][ping_opt] target
 
 -v               ... verbose (debug) mode
 -aa ttl=xx:mode:hz:ms ... audible settings where xx is the ttl to match to generate beep with frequency of hz Hz and
@@ -69,7 +69,11 @@ usage: $( basename $0 ) [-v][-aa 'ttL:mode:hz:ms ttl2:mode2:hz2:m2 *:mode3:hz3:m
                           use empty Hz and ms like ttl=123:no_sound_for_this_ttl:::
                           Default lookup table is:
                           $TTL_MODE_HZ_MS
--scroll          ... activate scroll mode (default one-line mode), useful to see full history
+-scroll mode     ... activate scroll mode (default $SCROLL, useful to see error distribution history), mode is:
+                     all = always scroll with each ping
+                     no  = never scroll, keep output limited to one-line
+                     err = only scroll errors
+                     anything else will keep default value ($SCROLL) unchanged
 -silent          ... activate globally silent mode despite lookup table, only display output, no audible sound (default audible mode)
 -c count         ... limit to count, stop after executing count pings (default $COUNT = infinite loop)
 -i interval      ... wait interval between sending the packets (default each ${INTERVAL}s)
@@ -80,9 +84,9 @@ target           ... target (hostname or ip address)
 
 This will execute infinite loop so use standard CTRL-C to stop and return to the command prompt.
 
-> $( basename $0 ) -silent -scroll -count 100 -s 12345 target
+> $( basename $0 ) -silent -scroll all -count 100 -s 12345 target
 
-This will execute only 100 pings with packet size of 12345 in silent mode and scrolling output.
+This will execute only 100 pings with packet size of 12345 in silent mode and scrolling everything output.
 
 REQUIRES (only in audible mode):
 - kernel module [ $KMOD ] (usually blackisted and not loaded so script will load module at the startup if required)
@@ -168,6 +172,23 @@ function ttl_beep()
     echo "mode=$mode"
 }
 
+# conditional new-line for printout based on $TTL and dependent on global $SCROLL mode
+#
+function nl()
+{
+    local ttl=$1
+    local n=$'\n'$'\r'
+
+    # always scroll
+    [[ $SCROLL == all ]] && echo "$n" && return
+    # never scroll
+    #[[ $SCROLL == no  ]] && echo '' && return
+    # scroll only errors ( err || ok )
+    #[[ $SCROLL == err ]] && { [[ -z $ttl ]] && echo "$n" || echo ''; }
+    [[ $SCROLL == err ]] && [[ -z $ttl ]] && echo "$n"
+}
+
+
 # =======
 #  MAIN
 # ======
@@ -189,8 +210,19 @@ do
         ;;
 
     -sc|-scroll)
-        OUT_LINES=0
-        $msg "PAR: scrolling mode activated (OUT_LINES=$OUT_LINES"
+        shift
+        case $1 in
+        all|always|yes)
+            SCROLL='all'
+            ;;
+        err|errors)
+            SCROLL='err'
+            ;;
+        no|one-line)
+            SCROLL='no'
+            ;;
+        esac
+        $msg "PAR: scrolling mode $1 (SCROLL=$SCROLL)"
         ;;
 
     -si|-silent)
@@ -221,15 +253,9 @@ done
 
 $msg "PAR: PING_OPT($PING_OPT)"
 
-# printout mode
-# single line mode (default)
-head=$'\r'; tail=' '
-# scroll mode
-[ $OUT_LINES -eq 0 ] && tail=$'\n' && head=' '
-
 # entering maon loop
 #
-echo "$COPY limit: $COUNT = each: ${INTERVAL}s = lines: $OUT_LINES = silent: $SILENT = ping-options: ${PING_OPT% *} = target: ${PING_OPT##* } ="
+echo "$COPY limit: $COUNT = each: ${INTERVAL}s = scroll: $SCROLL = silent: $SILENT = ping-options: ${PING_OPT% *} = target: ${PING_OPT##* } ="
 echo "= lookup table [ttl=val:mode_text:Hz:ms]: $TTL_MODE_HZ_MS ="
 
 # check and load kernel module
@@ -255,7 +281,7 @@ do
         # count statisctics
         [ -n "$ttl" ] && (( ++ok )) || (( ++err ))
         # display stats
-        printf '%sOK: %4d / ERR: %4d / %-6s %-10s %s %s' "$head" $ok $err "$ttl" "$time" "${mode//_/ }" "$tail"
+        printf '\rOK: %4d / ERR: %4d / %-6s %-10s %s %s' $ok $err "$ttl" "$time" "${mode//_/ }" "$(nl $ttl)"
         # limit number of packets to count
         [ $COUNT -gt 0 ] && [ $loop -ge $COUNT ] && break
 done
