@@ -6,7 +6,7 @@
 
 # version
 #
-VER='2020.06.26'
+VER='2020.06.27'
 
 # author
 #
@@ -47,6 +47,10 @@ SCROLL='err'
 #
 SILENT=0
 
+# timestamp date format (empty for no timestamping)
+#
+DATE_FRM='%x %X'
+
 # kernel module for pc speaker
 #
 KMOD=pcspkr
@@ -59,7 +63,7 @@ KMOD=pcspkr
 [ $# -lt 1 ] && cat <<< """
 $COPY
 
-usage: $( basename $0 ) [-v][-aa 'ttL:mode:hz:ms ttl2:mode2:hz2:m2 *:mode3:hz3:ms3'][-scroll mode][-silent][-c count][-i interval][ping_opt] target
+usage: $( basename $0 ) [-v][-aa 'ttL:mode:hz:ms ttl2:mode2:hz2:m2 *:mode3:hz3:ms3'][-scroll mode][-timestamp frm][-silent][-c count][-i interval][ping_opt] target
 
 -v               ... verbose (debug) mode
 -aa ttl=xx:mode:hz:ms ... audible settings where xx is the ttl to match to generate beep with frequency of hz Hz and
@@ -74,6 +78,11 @@ usage: $( basename $0 ) [-v][-aa 'ttL:mode:hz:ms ttl2:mode2:hz2:m2 *:mode3:hz3:m
                      no  = never scroll, keep output limited to one-line
                      err = only scroll errors
                      anything else will keep default value ($SCROLL) unchanged
+-timestamp frm   ... timestamping output, frm is date format or yes or no:
+                     yes = use default format ($DATE_FRM), use if you want to be explicit
+                     no  = no timestamps
+                     frm = valid date format string, see man date for details
+                     invalid string (without %) is treated as no timestamping
 -silent          ... activate globally silent mode despite lookup table, only display output, no audible sound (default audible mode)
 -c count         ... limit to count, stop after executing count pings (default $COUNT = infinite loop)
 -i interval      ... wait interval between sending the packets (default each ${INTERVAL}s)
@@ -182,7 +191,7 @@ function nl()
     # always scroll
     [[ $SCROLL == all ]] && echo "$n" && return
     # never scroll
-    #[[ $SCROLL == no  ]] && echo '' && return
+    [[ $SCROLL == no  ]] && return
     # scroll only errors ( err || ok )
     #[[ $SCROLL == err ]] && { [[ -z $ttl ]] && echo "$n" || echo ''; }
     [[ $SCROLL == err ]] && [[ -z $ttl ]] && echo "$n"
@@ -230,6 +239,12 @@ do
         $msg "PAR: silent mode activated (SILENT=$SILENT)"
         ;;
 
+    -timestamp)
+        shift
+        [[ $1 == *%* || $1 != yes ]] && DATE_FRM=$1
+        $msg "PAR: date format (DATE_FRM=$DATE_FRM)"
+        ;;
+
     -c)
         shift
         COUNT=$1
@@ -251,11 +266,13 @@ do
     shift
 done
 
+# dbg
+#
 $msg "PAR: PING_OPT($PING_OPT)"
 
-# entering maon loop
+# summary
 #
-echo "$COPY limit: $COUNT = each: ${INTERVAL}s = scroll: $SCROLL = silent: $SILENT = ping-options: ${PING_OPT% *} = target: ${PING_OPT##* } ="
+echo "$COPY limit: $COUNT = each: ${INTERVAL}s = scroll: $SCROLL = timestamp: $DATE_FRM = silent: $SILENT = ping-options: ${PING_OPT% *} = target: ${PING_OPT##* } ="
 echo "= lookup table [ttl=val:mode_text:Hz:ms]: $TTL_MODE_HZ_MS ="
 
 # check and load kernel module
@@ -266,22 +283,28 @@ echo "= lookup table [ttl=val:mode_text:Hz:ms]: $TTL_MODE_HZ_MS ="
 #
 [ $SILENT -eq 0 ] && check_beep
 
-# infinite loop
+# main loop
 #
-ok=0; err=0; loop=0
-while sleep $INTERVAL
-do
-        (( ++loop ))
+for (( loop=1; loop<=$COUNT || $COUNT==0; ++loop))
+{
+        # conditional timestamp
+        [[ $DATE_FRM = *%* ]] && ts=$(date +"$DATE_FRM ")
+        # ping
         ping=$( ping -c 1 -w $INTERVAL $PING_OPT )
+        # extract ttl
         ttl=$(  echo "$ping" |  grep -o "ttl=[[:digit:]]\+" )
+        # extract time
         time=$( echo "$ping" |  grep -o "time=[[:digit:]]\+\.\?[[:digit:]]\+" )
+        # dbg
         $msg "ping $PING_OPT -> returns($ttl, $time)"
         # beep by the lookup table and get mode from lookup table
         mode=$( ttl_beep $ttl )
         # count statisctics
         [ -n "$ttl" ] && (( ++ok )) || (( ++err ))
         # display stats
-        printf '\rOK: %4d / ERR: %4d / %-6s %-10s %s %s' $ok $err "$ttl" "$time" "${mode//_/ }" "$(nl $ttl)"
-        # limit number of packets to count
-        [ $COUNT -gt 0 ] && [ $loop -ge $COUNT ] && break
-done
+        printf '\r%sOK: %4d / ERR: %4d / %-6s %-10s %s %s' "$ts" "$ok" "$err" "$ttl" "$time" "${mode//_/ }" "$(nl $ttl)"
+        # sleep between pings for $INTERVAL
+        sleep $INTERVAL
+}
+# output new-line
+[[ $SCROLL != all ]] && echo
