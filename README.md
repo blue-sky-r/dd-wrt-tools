@@ -4,7 +4,8 @@ Various command line CLI tools related to DD-WRT but intended for use on linux d
 
 scripts:
 
-* [smantun](bin/smatun "Tools for Tuning the Antenna")  - Smart Antenna Tuning tool for linux CLI
+* [smantun](bin/smantun.sh "Tools for Tuning the Antenna")  - Smart Antenna Tuning tool for linux CLI
+* [aaping](bin/aaping.sh "ASUS audible ping") - ASUS audible ping for linux CLI
 * colog - colorize and enrich dd-wrt remote log file
 
 ---
@@ -18,6 +19,8 @@ position to maximize wireless signal quality (coverage).
 
 To get usage help simply run the script without any parameter:
 
+    $ bin/smantun.sh
+    
     = DD-WRT = Smart Antenna Tuning = (c) 2020.06.01 by Robert =
     
     usage: smantun.sh [-v] [-a mac] [-s 'c1,c2'] [-b 'xX'] [-l ms] [-o Hz] [-m k] [-r sec] [-d] ['q10,q10']] [-t sec] [router]
@@ -142,3 +145,67 @@ _click on the screenshot image to play the screenrecording video_
 * systray icon
 
 ---
+
+# aaping = audible asus ping
+
+ASUS audible ping provides audible feedback of target router. It is well know that ASUS returns different TTL
+in normal operating mode (TTL=64) or in recovery / tftp mode (TTL=100). By using this aaping you can easily
+hear distinct audible beep for each mode and immediatly know the state of target router.
+
+I found this usefull in case of manually resetting or entering recovery mode for router by pressing reset / wds
+buttons and power cycling. This helps when flashing experimental / beta versions of dd-wrt / tomato usb etc.
+
+To get usage help simply run the script without any parameter:
+
+    $ bin/aaping.sh
+    
+    = Audible-Asus-PING = (c) 2020.06.27 by Robert =
+    
+    usage: aaping.sh [-v][-aa 'ttL:mode:hz:ms ttl2:mode2:hz2:m2 *:mode3:hz3:ms3'][-scroll mode][-timestamp frm][-silent][-c count][-i interval][ping_opt] target
+    
+    -v               ... verbose (debug) mode
+    -aa ttl=xx:mode:hz:ms ... audible settings where xx is the ttl to match to generate beep with frequency of hz Hz and
+                              length of ms ms to pc speaker. Mode is descriptive information about mode (do not use spaces,
+                              use _ in text, all undescores will be displayed as spaces). Multiple entries are separated by space,
+                              the last entry should match all (* this will beep in case of any error). To make specific entry silent
+                              use empty Hz and ms like ttl=123:no_sound_for_this_ttl:::
+                              Default lookup table is:
+                              ttl=64:Normal:1000:50 ttl=100:TFTP_Recovery:500:100 ttl=63:Normal/L-1:900:50 ttl=99:TFTP_Recovery/L-1:400:100 *:no_response_?:200:100
+    -scroll mode     ... activate scroll mode (default err, useful to see error distribution history), mode is:
+                         all = always scroll with each ping
+                         no  = never scroll, keep output limited to one-line
+                         err = only scroll errors
+                         anything else will keep default value (err) unchanged
+    -timestamp frm   ... timestamping output, frm is date format or yes or no:
+                         yes = use default format (%x %X), use if you want to be explicit
+                         no  = no timestamps
+                         frm = valid date format string, see man date for details
+                         invalid string (without %) is treated as no timestamping
+    -silent          ... activate globally silent mode despite lookup table, only display output, no audible sound (default audible mode)
+    -c count         ... limit to count, stop after executing count pings (default 0 = infinite loop)
+    -i interval      ... wait interval between sending the packets (default each 1s)
+    ping_opt         ... other ping options pass-through to ping
+    target           ... target (hostname or ip address)
+    
+    > aaping.sh target
+    
+    This will execute infinite loop so use standard CTRL-C to stop and return to the command prompt.
+    
+    > aaping.sh -silent -scroll all -count 100 -s 12345 target
+    
+    This will execute only 100 pings with packet size of 12345 in silent mode and scrolling everything output.
+    
+    REQUIRES (only in audible mode):
+    - kernel module [ pcspkr ] (usually blackisted and not loaded so script will load module at the startup if required)
+    - connected and functional PC-SPEAKER
+    - beep executable
+    
+    The script does not make any changes to your system configuration. It loads kernel module [ pcspkr ] temporarily till the next reboot.
+    The kernel module stays loaded after the script has been ended so if you experience any [ pcspkr ] related problems
+    you might try to remove kernel module [ pcspkr ] manually by:
+    
+    > sudo rmmod pcspkr
+    
+    NOTE:  default lookuo table TTL_MODE_HZ_MS is very ASUS centric. For diffenet manufacturer you have to find out
+    proper TTL responses and build your lookup table. My entire network runs exclusively on ASUS routers only ...
+    
