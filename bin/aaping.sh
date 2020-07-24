@@ -6,7 +6,7 @@
 
 # version
 #
-VER='2020.06.27'
+VER='2020.07.24'
 
 # author
 #
@@ -25,7 +25,8 @@ COPY="= Audible-Asus-PING = (c) $VER by $AUTH ="
 
 # lookup table (ASUS specific): ttl:mode:beep_Hz:beep_ms
 # note: use _ instead os spaces in mode field
-TTL_MODE_HZ_MS="ttl=64:Normal/Working:1000:50 ttl=100:TFTP_Recovery:750:100 *:no_response_?:500:100"
+TTL_MODE_HZ_MS="ttl=64:Normal:1000:50 ttl=100:TFTP_Recovery:500:100 \
+ttl=63:Normal/L-1:900:50 ttl=99:TFTP_Recovery/L-1:400:100 *:no_response_?:200:100"
 
 # limit number of pings
 #
@@ -283,6 +284,10 @@ echo "= lookup table [ttl=val:mode_text:Hz:ms]: $TTL_MODE_HZ_MS ="
 #
 [ $SILENT -eq 0 ] && check_beep
 
+# ping deadline = 2 x interval
+#
+deadline=$(( INTERVAL+INTERVAL ))
+
 # main loop
 #
 for (( loop=1; loop<=$COUNT || $COUNT==0; ++loop))
@@ -290,7 +295,7 @@ for (( loop=1; loop<=$COUNT || $COUNT==0; ++loop))
         # conditional timestamp
         [[ $DATE_FRM = *%* ]] && ts=$(date +"$DATE_FRM ")
         # ping
-        ping=$( ping -c 1 -w $INTERVAL $PING_OPT )
+        ping=$( ping -c 1 -w $deadline $PING_OPT )
         # extract ttl
         ttl=$(  echo "$ping" |  grep -o "ttl=[[:digit:]]\+" )
         # extract time
@@ -306,5 +311,7 @@ for (( loop=1; loop<=$COUNT || $COUNT==0; ++loop))
         # sleep between pings for $INTERVAL
         sleep $INTERVAL
 }
+
 # output new-line
 [[ $SCROLL != all ]] && echo
+
