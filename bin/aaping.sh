@@ -6,7 +6,7 @@
 
 # version
 #
-VER='2020.07.24'
+VER='2020.07.25'
 
 # author
 #
@@ -290,6 +290,8 @@ deadline=$(( INTERVAL+INTERVAL ))
 
 # main loop
 #
+min_avg_max="-/0/-"
+
 for (( loop=1; loop<=$COUNT || $COUNT==0; ++loop))
 {
         # conditional timestamp
@@ -306,8 +308,16 @@ for (( loop=1; loop<=$COUNT || $COUNT==0; ++loop))
         mode=$( ttl_beep $ttl )
         # count statisctics
         [ -n "$ttl" ] && (( ++ok )) || (( ++err ))
+        # calculate statistics - time=xx/min/avg/max
+        min_avg_max=$( echo "$time/$min_avg_max" | awk -v N=$loop -F/ '/time=/ \
+          { gsub("time=", "", $1); act=$1; \
+            low  = $2; if (low  == "-" || act < low)  low  = act; \
+            avg  = $3; avg = (avg * (N-1) + act) / N; \
+            high = $4; if (high == "-" || act > high) high = act; \
+            printf "%.2f/%.3f/%.2f", low,avg,high }' )
         # display stats
-        printf '\r%sOK: %4d / ERR: %4d / %-6s %-10s %s %s' "$ts" "$ok" "$err" "$ttl" "$time" "${mode//_/ }" "$(nl $ttl)"
+        printf '\r%sOK: %4d / ERR: %4d / %-6s %-9s ms [ %-s ms ] %s %s' \
+            "$ts" "$ok" "$err" "$ttl" "$time" "$min_avg_max" "${mode//_/ }" "$(nl $ttl)"
         # sleep between pings for $INTERVAL
         sleep $INTERVAL
 }
@@ -315,3 +325,5 @@ for (( loop=1; loop<=$COUNT || $COUNT==0; ++loop))
 # output new-line
 [[ $SCROLL != all ]] && echo
 
+# statistics
+echo "= stats = $COUNT iterations = rtt min/avg/max = $min_avg_max ms ="
