@@ -6,7 +6,7 @@
 
 # version
 #
-VER='2020.07.25'
+VER='2020.07.26'
 
 # author
 #
@@ -194,10 +194,26 @@ function nl()
     # never scroll
     [[ $SCROLL == no  ]] && return
     # scroll only errors ( err || ok )
-    #[[ $SCROLL == err ]] && { [[ -z $ttl ]] && echo "$n" || echo ''; }
     [[ $SCROLL == err ]] && [[ -z $ttl ]] && echo "$n"
 }
 
+# display statistics
+#
+function display_stats()
+{
+    local cnt=${1:-$loop}
+
+    # optional \n
+    [ ! $1 ] && echo
+    # statistics
+    echo "= stats = $cnt pings = success rate "$( bc <<< "scale=2; 100*$ok/$cnt" )" % = rtt min/avg/max = $min_avg_max ms ="
+    #
+    exit 0
+}
+
+# display stats on CTRL-C
+#
+trap display_stats INT
 
 # =======
 #  MAIN
@@ -300,21 +316,21 @@ for (( loop=1; loop<=$COUNT || $COUNT==0; ++loop))
         ping=$( ping -c 1 -w $deadline $PING_OPT )
         # extract ttl
         ttl=$(  echo "$ping" |  grep -o "ttl=[[:digit:]]\+" )
+        # count statisctics
+        [ -n "$ttl" ] && (( ++ok )) || (( ++err ))
         # extract time
         time=$( echo "$ping" |  grep -o "time=[[:digit:]]\+\.\?[[:digit:]]\+" )
+        # recalculate statistics only if we have valid time - min/avg/max
+        [ -n "$time" ] && min_avg_max=$( echo "$min_avg_max" | awk -v N=$ok -v act="$time" -F/ \
+          '{  gsub("time=", "", act); act = act + 0; \
+              low  = $1; if (low  == "-" || act < low)  low  = act; \
+              avg  = $2; avg = (avg * (N-1) + act) / N; \
+              high = $3; if (high == "-" || act > high) high = act; \
+              printf "%.2f/%.3f/%.2f", low,avg,high }' )
         # dbg
         $msg "ping $PING_OPT -> returns($ttl, $time)"
         # beep by the lookup table and get mode from lookup table
         mode=$( ttl_beep $ttl )
-        # count statisctics
-        [ -n "$ttl" ] && (( ++ok )) || (( ++err ))
-        # calculate statistics - time=xx/min/avg/max
-        min_avg_max=$( echo "$time/$min_avg_max" | awk -v N=$loop -F/ '/time=/ \
-          { gsub("time=", "", $1); act=$1; \
-            low  = $2; if (low  == "-" || act < low)  low  = act; \
-            avg  = $3; avg = (avg * (N-1) + act) / N; \
-            high = $4; if (high == "-" || act > high) high = act; \
-            printf "%.2f/%.3f/%.2f", low,avg,high }' )
         # display stats
         printf '\r%sOK: %4d / ERR: %4d / %-6s %-9s ms [ %-s ms ] %s %s' \
             "$ts" "$ok" "$err" "$ttl" "$time" "$min_avg_max" "${mode//_/ }" "$(nl $ttl)"
@@ -325,5 +341,5 @@ for (( loop=1; loop<=$COUNT || $COUNT==0; ++loop))
 # output new-line
 [[ $SCROLL != all ]] && echo
 
-# statistics
-echo "= stats = $COUNT iterations = rtt min/avg/max = $min_avg_max ms ="
+# statistics (suppress optional \n)
+display_stats $COUNT
